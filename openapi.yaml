@@ -1,0 +1,1033 @@
+openapi: 3.0.3
+info:
+  title: Cueguard
+  version: 0.1.0
+  description: >-
+    Policing analytics API providing fused incident views, safeguarded predictive cues,
+    early intervention, custody clocks, and disclosure packages with human decision gates.
+  x-product-slug: ai-gov-cueguard
+  x-source: ai-in-gov/Accenture-Digital-Policing-Powered-by-Analytics/
+servers:
+  - url: https://api.example.com
+tags:
+  - name: Incidents
+    description: Fused incident and person views
+  - name: Cues
+    description: Operational and predictive cues
+  - name: Decisions
+    description: Human decision capture on cues
+  - name: EarlyIntervention
+    description: Officer early-intervention cases
+  - name: Custody
+    description: Custody detentions and time limits
+  - name: Disclosure
+    description: Evidence packages vs intelligence
+  - name: Governance
+    description: Legal basis, models, disparity, audit
+paths:
+  /v1/incidents:
+    get:
+      operationId: listIncidentViews
+      tags: [Incidents]
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: priorityType
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Incident views
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeIncidentView"
+    post:
+      operationId: upsertIncidentView
+      tags: [Incidents]
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IncidentViewUpsert"
+      responses:
+        "201":
+          description: Incident view materialised
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeIncidentView"
+  /v1/incidents/{incidentId}:
+    parameters:
+      - $ref: "#/components/parameters/IncidentId"
+    get:
+      operationId: getIncidentView
+      tags: [Incidents]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Incident view
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeIncidentView"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/incidents/{incidentId}/officer-brief:
+    parameters:
+      - $ref: "#/components/parameters/IncidentId"
+    get:
+      operationId: getOfficerBrief
+      tags: [Incidents]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Location and person history brief
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeLocationProfile"
+  /v1/persons:
+    get:
+      operationId: searchPersonEntities
+      tags: [Incidents]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Person entities with quality confidence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopePersonEntity"
+  /v1/cues:
+    get:
+      operationId: listCues
+      tags: [Cues]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: cueType
+          in: query
+          schema:
+            type: string
+            enum: [deployment, vulnerability, hotspot, officer_enablement]
+      responses:
+        "200":
+          description: Cues
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeCue"
+    post:
+      operationId: issueCue
+      tags: [Cues]
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CueCreate"
+      responses:
+        "201":
+          description: Cue issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeCue"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /v1/cues/{cueId}/decisions:
+    parameters:
+      - $ref: "#/components/parameters/CueId"
+    post:
+      operationId: recordHumanDecision
+      tags: [Decisions]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HumanDecisionCreate"
+      responses:
+        "201":
+          description: Decision recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeHumanDecision"
+        "403":
+          description: Automatic liberty action forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/early-intervention/cases:
+    get:
+      operationId: listEarlyInterventionCases
+      tags: [EarlyIntervention]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: EI cases
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeEarlyInterventionCase"
+    post:
+      operationId: openEarlyInterventionCase
+      tags: [EarlyIntervention]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EarlyInterventionCaseCreate"
+      responses:
+        "201":
+          description: Case opened
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeEarlyInterventionCase"
+  /v1/early-intervention/cases/{caseId}/challenge:
+    parameters:
+      - $ref: "#/components/parameters/EiCaseId"
+    post:
+      operationId: challengeEarlyInterventionCase
+      tags: [EarlyIntervention]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rationale]
+              properties:
+                rationale: { type: string }
+                evidenceRefs:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200":
+          description: Challenge recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeEarlyInterventionCase"
+  /v1/custody/detentions:
+    get:
+      operationId: listCustodyDetentions
+      tags: [Custody]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Detentions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeCustodyDetention"
+    post:
+      operationId: createCustodyDetention
+      tags: [Custody]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustodyDetentionCreate"
+      responses:
+        "201":
+          description: Detention created with clocks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeCustodyDetention"
+  /v1/disclosure/packages:
+    get:
+      operationId: listEvidencePackages
+      tags: [Disclosure]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Evidence packages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeEvidencePackage"
+    post:
+      operationId: createEvidencePackage
+      tags: [Disclosure]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvidencePackageCreate"
+      responses:
+        "201":
+          description: Package created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeEvidencePackage"
+  /v1/disclosure/packages/{packageId}/seal:
+    parameters:
+      - $ref: "#/components/parameters/PackageId"
+    post:
+      operationId: sealEvidencePackage
+      tags: [Disclosure]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Package sealed for disclosure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeEvidencePackage"
+  /v1/governance/legal-bases:
+    get:
+      operationId: listLegalBasisRecords
+      tags: [Governance]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Legal bases
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeLegalBasisRecord"
+    post:
+      operationId: registerLegalBasis
+      tags: [Governance]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LegalBasisRecord"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeLegalBasisRecord"
+  /v1/governance/models:
+    post:
+      operationId: registerModel
+      tags: [Governance]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModelRegistration"
+      responses:
+        "201":
+          description: Model registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeModelRegistration"
+  /v1/governance/disparity-metrics:
+    get:
+      operationId: listDisparityMetrics
+      tags: [Governance]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Disparity metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeDisparityMetric"
+  /v1/governance/audit-events:
+    get:
+      operationId: listAuditEvents
+      tags: [Governance]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: incidentId
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Audit events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeAuditEvent"
+components:
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+
+    IncidentId:
+      name: incidentId
+      in: path
+      required: true
+      schema: { type: string }
+    CueId:
+      name: cueId
+      in: path
+      required: true
+      schema: { type: string }
+    EiCaseId:
+      name: caseId
+      in: path
+      required: true
+      schema: { type: string }
+    PackageId:
+      name: packageId
+      in: path
+      required: true
+      schema: { type: string }
+
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: Not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    UnprocessableEntity:
+      description: Validation failed
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+  schemas:
+
+    ResponseMeta:
+      type: object
+      required: [requestId, timestamp]
+      properties:
+        requestId: { type: string }
+        timestamp: { type: string, format: date-time }
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+
+    Agency:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+    SourceSystem:
+      type: object
+      required: [id, name, systemType]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        systemType:
+          type: string
+          enum: [cad, rms, video, partner, complaints, training]
+    IncidentView:
+      type: object
+      required: [id, externalRef, qualityConfidence]
+      properties:
+        id: { type: string }
+        externalRef: { type: string }
+        priorityType: { type: string }
+        summary: { type: string }
+        locationId: { type: string }
+        qualityConfidence: { type: number }
+        dataAgeSeconds: { type: integer }
+    IncidentViewUpsert:
+      type: object
+      required: [externalRef, sourceSystemId]
+      properties:
+        externalRef: { type: string }
+        sourceSystemId: { type: string }
+        priorityType: { type: string }
+        summary: { type: string }
+        locationId: { type: string }
+    PersonEntity:
+      type: object
+      required: [id, displayName, qualityConfidence]
+      properties:
+        id: { type: string }
+        displayName: { type: string }
+        qualityConfidence: { type: number }
+        duplicateSuspect: { type: boolean }
+    LocationProfile:
+      type: object
+      required: [id, incidentId]
+      properties:
+        id: { type: string }
+        incidentId: { type: string }
+        priorIncidentCount: { type: integer }
+        cautionMarkers:
+          type: array
+          items: { type: string }
+        sourceLabels:
+          type: array
+          items: { type: string }
+        dataAgeSeconds: { type: integer }
+    OfficerProfile:
+      type: object
+      required: [id, badgeNumber]
+      properties:
+        id: { type: string }
+        badgeNumber: { type: string }
+        unit: { type: string }
+    Cue:
+      type: object
+      required: [id, cueType, legalBasisId, status]
+      properties:
+        id: { type: string }
+        cueType:
+          type: string
+          enum: [deployment, vulnerability, hotspot, officer_enablement]
+        legalBasisId: { type: string }
+        modelRegistrationId: { type: string }
+        score: { type: number }
+        narrative: { type: string }
+        libertyAffecting: { type: boolean }
+        status:
+          type: string
+          enum: [issued, decided, expired]
+    CueCreate:
+      type: object
+      required: [cueType, legalBasisId, narrative]
+      properties:
+        cueType:
+          type: string
+          enum: [deployment, vulnerability, hotspot, officer_enablement]
+        legalBasisId: { type: string }
+        modelRegistrationId: { type: string }
+        score: { type: number }
+        narrative: { type: string }
+        libertyAffecting: { type: boolean }
+        incidentId: { type: string }
+    LegalBasisRecord:
+      type: object
+      required: [id, statuteOrPolicy, purpose]
+      properties:
+        id: { type: string }
+        statuteOrPolicy: { type: string }
+        purpose: { type: string }
+        retentionNote: { type: string }
+    HumanDecision:
+      type: object
+      required: [id, cueId, decision, decidedBy]
+      properties:
+        id: { type: string }
+        cueId: { type: string }
+        decision:
+          type: string
+          enum: [accept, modify, reject]
+        decidedBy: { type: string }
+        rationale: { type: string }
+        decidedAt: { type: string, format: date-time }
+    HumanDecisionCreate:
+      type: object
+      required: [decision, decidedBy]
+      properties:
+        decision:
+          type: string
+          enum: [accept, modify, reject]
+        decidedBy: { type: string }
+        rationale: { type: string }
+        modification: { type: string }
+    EarlyInterventionCase:
+      type: object
+      required: [id, officerId, status, peerNormFlags]
+      properties:
+        id: { type: string }
+        officerId: { type: string }
+        status:
+          type: string
+          enum: [open, coaching, challenged, closed]
+        peerNormFlags:
+          type: array
+          items: { type: string }
+        dueProcessNotes: { type: string }
+    EarlyInterventionCaseCreate:
+      type: object
+      required: [officerId, peerNormFlags]
+      properties:
+        officerId: { type: string }
+        peerNormFlags:
+          type: array
+          items: { type: string }
+    CustodyDetention:
+      type: object
+      required: [id, personId, startedAt, limitAt, clockState]
+      properties:
+        id: { type: string }
+        personId: { type: string }
+        incidentId: { type: string }
+        startedAt: { type: string, format: date-time }
+        limitAt: { type: string, format: date-time }
+        clockState:
+          type: string
+          enum: [ok, warning, breached]
+    CustodyDetentionCreate:
+      type: object
+      required: [personId, startedAt, limitAt]
+      properties:
+        personId: { type: string }
+        incidentId: { type: string }
+        startedAt: { type: string, format: date-time }
+        limitAt: { type: string, format: date-time }
+    EvidencePackage:
+      type: object
+      required: [id, incidentId, status]
+      properties:
+        id: { type: string }
+        incidentId: { type: string }
+        status:
+          type: string
+          enum: [draft, sealed]
+        itemRefs:
+          type: array
+          items: { type: string }
+        excludesIntelligence: { type: boolean }
+    EvidencePackageCreate:
+      type: object
+      required: [incidentId, itemRefs]
+      properties:
+        incidentId: { type: string }
+        itemRefs:
+          type: array
+          items: { type: string }
+        excludesIntelligence: { type: boolean }
+    IntelligenceProduct:
+      type: object
+      required: [id, classification, summary]
+      properties:
+        id: { type: string }
+        classification: { type: string }
+        summary: { type: string }
+        notForDisclosure: { type: boolean }
+    AuditEvent:
+      type: object
+      required: [id, actorId, action, occurredAt]
+      properties:
+        id: { type: string }
+        actorId: { type: string }
+        action: { type: string }
+        incidentId: { type: string }
+        cueId: { type: string }
+        dataShownSummary: { type: string }
+        occurredAt: { type: string, format: date-time }
+    DisparityMetric:
+      type: object
+      required: [id, dimension, rate, period]
+      properties:
+        id: { type: string }
+        dimension: { type: string }
+        geography: { type: string }
+        rate: { type: number }
+        period: { type: string }
+        thresholdBreached: { type: boolean }
+    PartnerShareGrant:
+      type: object
+      required: [id, partnerId, purpose, legalBasisId]
+      properties:
+        id: { type: string }
+        partnerId: { type: string }
+        purpose: { type: string }
+        legalBasisId: { type: string }
+    ModelRegistration:
+      type: object
+      required: [id, name, purpose, legalBasisId]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        purpose: { type: string }
+        legalBasisId: { type: string }
+        libertyAffectingForbidden: { type: boolean }
+
+    DataEnvelopeIncidentView:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/IncidentView"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeIncidentView:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/IncidentView"
+            nextCursor: { type: string }
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+
+    DataEnvelopePersonEntity:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/PersonEntity"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopePersonEntity:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/PersonEntity"
+            nextCursor: { type: string }
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+
+    DataEnvelopeLocationProfile:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/LocationProfile"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeLocationProfile:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/LocationProfile"
+            nextCursor: { type: string }
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+
+    DataEnvelopeCue:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/Cue"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeCue:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/Cue"
+            nextCursor: { type: string }
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+
+    DataEnvelopeHumanDecision:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/HumanDecision"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeHumanDecision:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/HumanDecision"
+            nextCursor: { type: string }
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+
+    DataEnvelopeEarlyInterventionCase:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/EarlyInterventionCase"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeEarlyInterventionCase:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/EarlyInterventionCase"
+            nextCursor: { type: string }
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+
+    DataEnvelopeCustodyDetention:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/CustodyDetention"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeCustodyDetention:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/CustodyDetention"
+            nextCursor: { type: string }
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+
+    DataEnvelopeEvidencePackage:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/EvidencePackage"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeEvidencePackage:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/EvidencePackage"
+            nextCursor: { type: string }
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+
+    DataEnvelopeLegalBasisRecord:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/LegalBasisRecord"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeLegalBasisRecord:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/LegalBasisRecord"
+            nextCursor: { type: string }
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+
+    DataEnvelopeModelRegistration:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/ModelRegistration"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeModelRegistration:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/ModelRegistration"
+            nextCursor: { type: string }
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+
+    DataEnvelopeDisparityMetric:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/DisparityMetric"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeDisparityMetric:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/DisparityMetric"
+            nextCursor: { type: string }
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+
+    DataEnvelopeAuditEvent:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/AuditEvent"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeAuditEvent:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/AuditEvent"
+            nextCursor: { type: string }
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
